@@ -27,7 +27,7 @@
 ;; (add-to-list 'load-path "~/.emacs.d/elisp/codeium.el")
 ;; (require 'codeium)
 
-;; (add-to-list 'load-path "~/.emacs.d/elisp")
+;; (add-to-list 'load-path "~/.emacs.d/elisp/codeium-overlay.el")
 ;; (require 'codeium-overlay)
 
 ;;; Code:
@@ -179,10 +179,12 @@
           (setq codeium-current-state (codeium-state-make :name (concat "codeium-state-" (buffer-name)))))
         (add-hook 'after-change-functions #'codeium-overlay-after-change-function nil t)
         (add-hook 'post-command-hook #'codeium-overlay-track-point-and-mark nil t)
+	(keymap-set codeium-overlay-mode-map "C-g"  #'codeium-overlay-reject-suggested-completion)
 	(keymap-set codeium-overlay-mode-map "TAB" #'codeium-overlay-tab-command))
     (codeium-overlay-reject-suggested-completion)
     (remove-hook 'after-change-functions #'codeium-overlay-after-change-function t)
     (remove-hook 'post-command-hook #'codeium-overlay-track-point-and-mark t)
+    (keymap-unset codeium-overlay-mode-map "C-g")
     (keymap-unset codeium-overlay-mode-map "TAB")))
 
 (provide 'codeium-overlay)
