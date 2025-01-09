@@ -59,11 +59,20 @@
   "Keymap for Codeium overlay mode.")
 
 (defun codeium-overlay-get-cursor-offset ()
+  "Get the current cursor offset."
   (codeium-utf8-byte-length
    (buffer-substring-no-properties (max (- (point) 3000) (point-min)) (point))))
 
+(defun codeium-overlay-get-buffer-substring ()
+  "Get the current buffer as a string, limiting the length."
+  (buffer-substring-no-properties (max (- (point) 3000) (point-min)) (min (+ (point) 1000) (point-max))))
+
 (defun codeium-overlay-get-completion (callback)
   "Get a completion from Codeium and send it to CALLBACK."
+  (codeium-overlay-get-completion-for-prompt (codeium-overlay-get-buffer-substring) (codeium-overlay-get-cursor-offset) callback))
+
+(defun codeium-overlay-get-completion-for-prompt (prompt offset callback)
+  "Get a completion from Codeium for PROMPT with document OFFSET, and send it to CALLBACK."
   (unless codeium-current-state
     (setq codeium-current-state (codeium-state-make :name (concat "codeium-state-" (buffer-name)))))
   (when
@@ -74,9 +83,8 @@
     (codeium-init codeium-current-state))
   (cl-letf*
       (
-       ((codeium-config 'codeium/document/text codeium-current-state) (lambda ()
-									(buffer-substring-no-properties (max (- (point) 3000) (point-min)) (min (+ (point) 1000) (point-max)))))
-       ((codeium-config 'codeium/document/cursor_offset codeium-current-state) (codeium-overlay-get-cursor-offset))
+       ((codeium-config 'codeium/document/text codeium-current-state) prompt)
+       ((codeium-config 'codeium/document/cursor_offset codeium-current-state) offset)
        ((codeium-config 'codeium-api-enabled codeium-current-state) (lambda (api) (eq api 'GetCompletions)))
        (response (codeium-request-synchronously 'GetCompletions codeium-current-state nil)))
     (when response
@@ -93,7 +101,25 @@
 				    :start-offset start-offset
 				    :end-offset end-offset))))))))
 
+(defun codeium-overlay-send-instruct (prompt)
+  "Send a PROMPT to Codeium and insert the response."
+  (interactive "MPrompt: ")
+  (codeium-overlay-reject-suggested-completion)
+  (let* ((buffer-content (codeium-overlay-get-buffer-substring))
+	 (cursor-offset (codeium-overlay-get-cursor-offset))
+	 (modified-content (concat (substring buffer-content 0 cursor-offset)
+				   comment-start
+				   " "
+                                   prompt
+				   "\n"
+                                   (substring buffer-content cursor-offset))))
+    (codeium-overlay-get-completion-for-prompt modified-content (+ cursor-offset (length prompt) (length comment-start) 2)
+					       (lambda (response)
+						 (insert (plist-get response :text))
+						 (indent-according-to-mode)))))
+
 (defun codeium-overlay-accept-completion (completion)
+  "Accept a COMPLETION."
   (let* ((start-offset (string-to-number (plist-get completion :start-offset)))
          (end-offset (string-to-number (plist-get completion :end-offset)))
          (start-offset-absolute (+ (max (- (point) 3000) (point-min)) start-offset))
