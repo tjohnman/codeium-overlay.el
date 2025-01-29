@@ -1,4 +1,4 @@
-;;; codeium-overlay --- Extends codeium.el to provide completion suggestions in overlays -*- lexical-binding: t -*-
+;;; codeium-overlay.el --- Extends codeium.el to provide completion suggestions in overlays -*- lexical-binding: t -*-
 
 ;;; License:
 
